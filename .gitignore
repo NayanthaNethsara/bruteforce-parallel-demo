@@ -1,0 +1,21 @@
+# Build artifacts
+bin/
+*.o
+*.out
+*.obj
+*.exe
+*.a
+*.so
+*.dylib
+
+# macOS
+.DS_Store
+*.dSYM/
+
+# Logs
+*.log
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.code-workspace
