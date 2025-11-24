@@ -1,0 +1,18 @@
+// SHA-256 brute-force using MPI (placeholder)
+#include <stdio.h>
+#include <mpi.h>
+
+int main(int argc, char **argv) {
+    int rank, size;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    
+    if (rank == 0) {
+        printf("SHA-256 MPI brute-force (placeholder)\n");
+        printf("Running with %d processes\n", size);
+    }
+    
+    MPI_Finalize();
+    return 0;
+}
