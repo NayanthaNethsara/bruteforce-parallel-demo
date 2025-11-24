@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <omp.h>
 
 const char *CHARSET = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -38,7 +37,7 @@ int main(int argc, char **argv) {
     int charset_len = strlen(CHARSET);
     int target_len = strlen(target);
 
-    clock_t t0 = clock();
+    double t0 = omp_get_wtime();
 
     int found = 0;
     char found_str[64];
@@ -88,14 +87,14 @@ int main(int argc, char **argv) {
         }
 
         if (found) {
-            double elapsed = (double)(clock() - t0) / CLOCKS_PER_SEC;
+            double elapsed = omp_get_wtime() - t0;
             printf("\nFOUND: \"%s\" (len=%d) in %.4f s\n", found_str, len, elapsed);
             break;
         }
     }
 
     if (!found) {
-        double elapsed = (double)(clock() - t0) / CLOCKS_PER_SEC;
+        double elapsed = omp_get_wtime() - t0;
         printf("Not found (max_len=%d). Time: %.4f s\n", max_len, elapsed);
     }
 

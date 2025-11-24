@@ -34,7 +34,8 @@ int main(int argc, char **argv) {
     printf("Target: \"%s\" (len=%zu), max_len=%d, charset_len=%d\n",
            target, target_len, max_len, charset_len);
 
-    clock_t t0 = clock();
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
     char candidate[64];
 
     int found = 0;
@@ -49,7 +50,8 @@ int main(int argc, char **argv) {
             // Compare only if lengths match
             if (strlen(target) == (size_t)len) {
                 if (strcmp(candidate, target) == 0) {
-                    double elapsed = (double)(clock() - t0) / CLOCKS_PER_SEC;
+                    clock_gettime(CLOCK_MONOTONIC, &t1);
+                    double elapsed = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
                     printf("FOUND: \"%s\" (len=%d) in %.4f s\n", candidate, len, elapsed);
                     found = 1;
                     break;
@@ -62,7 +64,8 @@ int main(int argc, char **argv) {
     }
 
     if (!found) {
-        double elapsed = (double)(clock() - t0) / CLOCKS_PER_SEC;
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        double elapsed = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
         printf("Not found up to length %d. Time: %.4f s\n", max_len, elapsed);
     }
     return 0;
