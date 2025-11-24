@@ -15,6 +15,11 @@ CFLAGS := -O2 -Wall -Wextra -std=c11
 OPENMP_FLAGS := -fopenmp
 LDFLAGS :=
 
+# Add POSIX flag for clock_gettime on Linux
+ifneq ($(UNAME_S),Darwin)
+CFLAGS += -D_POSIX_C_SOURCE=199309L
+endif
+
 # OpenSSL detection (for SHA-256 implementations)
 OPENSSL_CFLAGS := $(shell pkg-config --cflags openssl 2>/dev/null)
 OPENSSL_LIBS   := $(shell pkg-config --libs openssl 2>/dev/null)
@@ -124,7 +129,7 @@ $(BIN_DIR):
 
 # === Plain Serial ===
 $(PLAIN_SERIAL): plain/serial/brute_plain.c | $(BIN_DIR)
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $(OPENMP_FLAGS) $< -o $@ $(LDFLAGS) -lgomp
 
 # === Plain OpenMP ===
 $(PLAIN_OPENMP): plain/openmp/brute_plain_openmp.c | $(BIN_DIR)
