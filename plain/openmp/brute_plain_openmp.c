@@ -18,6 +18,14 @@ void int_to_indices(long long n, int base, int len, int *idx) {
     }
 }
 
+void increment_indices(int *idx, int len, int base) {
+    for (int i = len - 1; i >= 0; i--) {
+        idx[i]++;
+        if (idx[i] < base) return;
+        idx[i] = 0;
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc != 3) {
         printf("Usage: %s <target_password> <max_len>\n", argv[0]);
@@ -41,33 +49,46 @@ int main(int argc, char **argv) {
 
         printf("Trying length %d → %lld combinations\n", len, total);
 
-        // FULL PARALLEL VERSION
-        #pragma omp parallel for shared(found, found_str) schedule(static)
-        for (long long n = 0; n < total; n++) {
+        #pragma omp parallel shared(found, found_str)
+        {
+            int tid = omp_get_thread_num();
+            int nth = omp_get_num_threads();
 
-            if (found) continue;  // Early stop
+            long long chunk = total / nth;
+            long long start = tid * chunk;
+            long long end = (tid == nth - 1) ? total : start + chunk;
 
-            int indices[16];
-            char candidate[32];
+            int *indices = malloc(sizeof(int) * len);
+            char *candidate = malloc(len + 1);
 
-            int_to_indices(n, charset_len, len, indices);
-            index_to_candidate(indices, len, candidate);
+            int_to_indices(start, charset_len, len, indices);
 
-            if (len == target_len && strcmp(candidate, target) == 0) {
-                #pragma omp critical
-                {
-                    if (!found) {
-                        found = 1;
-                        strcpy(found_str, candidate);
+            for (long long n = start; n < end; n++) {
+                if (found) break;
+
+                index_to_candidate(indices, len, candidate);
+
+                if (len == target_len && strcmp(candidate, target) == 0) {
+                    #pragma omp critical
+                    {
+                        if (!found) {
+                            found = 1;
+                            strcpy(found_str, candidate);
+                        }
                     }
+                    break;
                 }
+
+                increment_indices(indices, len, charset_len);
             }
+
+            free(indices);
+            free(candidate);
         }
 
         if (found) {
             double elapsed = omp_get_wtime() - t0;
-            printf("\nFOUND: \"%s\" (len=%d) in %.4f s\n",
-                   found_str, len, elapsed);
+            printf("\nFOUND: \"%s\" (len=%d) in %.4f s\n", found_str, len, elapsed);
             break;
         }
     }
