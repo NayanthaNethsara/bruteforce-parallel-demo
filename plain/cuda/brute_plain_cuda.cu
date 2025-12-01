@@ -1,7 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <cuda_runtime.h>
+
+// Returns current time in seconds
+double get_time_sec() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
 
 // Hardcoded charset on device
 __constant__ char d_CHARSET[37]; // 36 chars + null terminator if needed, but we just need chars
@@ -74,6 +82,8 @@ int main(int argc, char **argv) {
     int h_found = 0;
     char h_result[64];
 
+    double t0 = get_time_sec();
+
     // Iterate through lengths
     for (int len = 1; len <= max_len; ++len) {
         // Optimization: Skip if length doesn't match target
@@ -95,13 +105,15 @@ int main(int argc, char **argv) {
         cudaMemcpy(&h_found, d_found, sizeof(int), cudaMemcpyDeviceToHost);
         if (h_found) {
             cudaMemcpy(h_result, d_result, 64, cudaMemcpyDeviceToHost);
-            printf("FOUND: \"%s\"\n", h_result);
+            double elapsed = get_time_sec() - t0;
+            printf("FOUND: \"%s\" in %.4f s\n", h_result, elapsed);
             break;
         }
     }
 
     if (!h_found) {
-        printf("Not found.\n");
+        double elapsed = get_time_sec() - t0;
+        printf("Not found. Time: %.4f s\n", elapsed);
     }
 
     cudaFree(d_target);
