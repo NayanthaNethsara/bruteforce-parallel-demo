@@ -112,8 +112,8 @@ __device__ void sha256_transform(uint32_t state[8], const unsigned char data[], 
     state[7] += h;
 }
 
-__global__ void check_sha256_kernel(unsigned char *d_target_hash, int len, unsigned long long total_combinations, int *d_found, char *d_result) {
-    unsigned long long idx = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void check_sha256_kernel(unsigned char *d_target_hash, int len, unsigned long long total_combinations, unsigned long long offset, int *d_found, char *d_result) {
+    unsigned long long idx = blockIdx.x * blockDim.x + threadIdx.x + offset;
     
     if (idx >= total_combinations) return;
     if (*d_found) return;
@@ -197,18 +197,29 @@ int main(int argc, char **argv) {
         printf("Checking length %d: %llu combinations...\n", len, total_combinations);
 
         int blockSize = 256;
-        int gridSize = (total_combinations + blockSize - 1) / blockSize;
+        // Batch size: 100 million combinations per launch
+        unsigned long long batch_size = 100000000;
 
-        check_sha256_kernel<<<gridSize, blockSize>>>(d_target_hash, len, total_combinations, d_found, d_result);
-        cudaDeviceSynchronize();
+        for (unsigned long long offset = 0; offset < total_combinations; offset += batch_size) {
+            unsigned long long current_batch = batch_size;
+            if (offset + current_batch > total_combinations) {
+                current_batch = total_combinations - offset;
+            }
 
-        cudaMemcpy(&h_found, d_found, sizeof(int), cudaMemcpyDeviceToHost);
-        if (h_found) {
-            cudaMemcpy(h_result, d_result, 64, cudaMemcpyDeviceToHost);
-            double elapsed = get_time_sec() - t0;
-            printf("FOUND: \"%s\" in %.4f s\n", h_result, elapsed);
-            break;
+            int gridSize = (current_batch + blockSize - 1) / blockSize;
+
+            check_sha256_kernel<<<gridSize, blockSize>>>(d_target_hash, len, total_combinations, offset, d_found, d_result);
+            cudaDeviceSynchronize();
+
+            cudaMemcpy(&h_found, d_found, sizeof(int), cudaMemcpyDeviceToHost);
+            if (h_found) {
+                cudaMemcpy(h_result, d_result, 64, cudaMemcpyDeviceToHost);
+                double elapsed = get_time_sec() - t0;
+                printf("FOUND: \"%s\" in %.4f s\n", h_result, elapsed);
+                break;
+            }
         }
+        if (h_found) break;
     }
 
     if (!h_found) {

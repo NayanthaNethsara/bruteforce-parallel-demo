@@ -18,8 +18,8 @@ const char *h_CHARSET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 // Kernel to check passwords
 // Each thread checks one index in the search space
-__global__ void check_password_kernel(char *d_target, int target_len, int len, unsigned long long total_combinations, int *d_found, char *d_result) {
-    unsigned long long idx = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void check_password_kernel(char *d_target, int target_len, int len, unsigned long long total_combinations, unsigned long long offset, int *d_found, char *d_result) {
+    unsigned long long idx = blockIdx.x * blockDim.x + threadIdx.x + offset;
     
     if (idx >= total_combinations) return;
     if (*d_found) return; // Early exit if already found
@@ -95,20 +95,31 @@ int main(int argc, char **argv) {
         printf("Checking length %d: %llu combinations...\n", len, total_combinations);
 
         int blockSize = 256;
-        int gridSize = (total_combinations + blockSize - 1) / blockSize;
-
-        check_password_kernel<<<gridSize, blockSize>>>(d_target, target_len, len, total_combinations, d_found, d_result);
+        // Batch size: 100 million combinations per launch to avoid TDR or grid limits
+        unsigned long long batch_size = 100000000; 
         
-        cudaDeviceSynchronize();
+        for (unsigned long long offset = 0; offset < total_combinations; offset += batch_size) {
+            unsigned long long current_batch = batch_size;
+            if (offset + current_batch > total_combinations) {
+                current_batch = total_combinations - offset;
+            }
 
-        // Check if found
-        cudaMemcpy(&h_found, d_found, sizeof(int), cudaMemcpyDeviceToHost);
-        if (h_found) {
-            cudaMemcpy(h_result, d_result, 64, cudaMemcpyDeviceToHost);
-            double elapsed = get_time_sec() - t0;
-            printf("FOUND: \"%s\" in %.4f s\n", h_result, elapsed);
-            break;
+            int gridSize = (current_batch + blockSize - 1) / blockSize;
+
+            check_password_kernel<<<gridSize, blockSize>>>(d_target, target_len, len, total_combinations, offset, d_found, d_result);
+            
+            cudaDeviceSynchronize();
+
+            // Check if found
+            cudaMemcpy(&h_found, d_found, sizeof(int), cudaMemcpyDeviceToHost);
+            if (h_found) {
+                cudaMemcpy(h_result, d_result, 64, cudaMemcpyDeviceToHost);
+                double elapsed = get_time_sec() - t0;
+                printf("FOUND: \"%s\" in %.4f s\n", h_result, elapsed);
+                break;
+            }
         }
+        if (h_found) break;
     }
 
     if (!h_found) {
