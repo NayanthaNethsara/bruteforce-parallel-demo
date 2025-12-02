@@ -51,35 +51,41 @@ int main(int argc, char **argv) {
 
         #pragma omp parallel shared(found, found_str)
         {
-            int tid = omp_get_thread_num();
-            int nth = omp_get_num_threads();
-
-            long long chunk = total / nth;
-            long long start = tid * chunk;
-            long long end = (tid == nth - 1) ? total : start + chunk;
-
             int *indices = malloc(sizeof(int) * len);
             char *candidate = malloc(len + 1);
+            
+            // Use a large chunk size to amortize the cost of int_to_indices
+            // and to allow incremental updates within the chunk.
+            long long chunk_size = 10000; 
+            
+            #pragma omp for schedule(dynamic, 1) nowait
+            for (long long base = 0; base < total; base += chunk_size) {
+                if (found) continue;
 
-            int_to_indices(start, charset_len, len, indices);
+                long long end = base + chunk_size;
+                if (end > total) end = total;
 
-            for (long long n = start; n < end; n++) {
-                if (found) break;
+                // Initialize indices for the start of this chunk
+                int_to_indices(base, charset_len, len, indices);
 
-                index_to_candidate(indices, len, candidate);
+                for (long long n = base; n < end; n++) {
+                    if (found) break;
 
-                if (len == target_len && strcmp(candidate, target) == 0) {
-                    #pragma omp critical
-                    {
-                        if (!found) {
-                            found = 1;
-                            strcpy(found_str, candidate);
+                    index_to_candidate(indices, len, candidate);
+
+                    if (len == target_len && strcmp(candidate, target) == 0) {
+                        #pragma omp critical
+                        {
+                            if (!found) {
+                                found = 1;
+                                strcpy(found_str, candidate);
+                            }
                         }
+                        break; // Break inner loop
                     }
-                    break;
-                }
 
-                increment_indices(indices, len, charset_len);
+                    increment_indices(indices, len, charset_len);
+                }
             }
 
             free(indices);
