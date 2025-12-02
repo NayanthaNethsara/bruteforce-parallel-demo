@@ -7,6 +7,7 @@ The CUDA implementation for SHA256 brute force is a highly parallelized, compute
 **Design Decisions:**
 - **Custom SHA256 Implementation:** Since standard libraries like OpenSSL are not available in CUDA device code, we implemented the SHA256 algorithm (transform function) from scratch using bitwise operations (`ROTRIGHT`, `CH`, `MAJ`, `SIG0`, `SIG1`). This allows the entire hashing process to occur in parallel on thousands of CUDA cores.
 - **Index-to-Candidate:** Similar to the plain CUDA version, threads convert their linear index to a base-36 string. This avoids memory lookups for candidate generation.
+- **Batch Processing:** To ensure stability and avoid hitting hardware grid limits for longer passwords, the search space is processed in batches (e.g., 100 million hashes per kernel launch). An `offset` is passed to the kernel to shift the thread indices accordingly.
 - **Constant Memory:** The SHA256 constants (`k` array) and the charset are stored in `__constant__` memory. This is critical for performance because these values are read-only and accessed by all threads simultaneously, allowing the GPU to broadcast them from the constant cache.
 
 **Load Balancing:**

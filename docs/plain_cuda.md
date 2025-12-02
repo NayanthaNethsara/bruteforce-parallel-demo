@@ -7,6 +7,7 @@ The CUDA implementation utilizes a massive data-parallel approach. Instead of it
 **Design Decisions:**
 - **Index-to-String Conversion:** This is the core of the parallelization. It allows random access to any point in the search space without dependency on previous states. This eliminates the need for communication between threads.
 - **Kernel Launch:** We launch a kernel with enough blocks and threads to cover the entire search space for a given length. For length 5, there are $36^5 \approx 60$ million combinations, which fits easily into a modern GPU's grid.
+- **Batch Processing:** To handle large search spaces (e.g., length 9 with $>10^{13}$ combinations) that exceed the maximum grid size ($2^{31}-1$ blocks) or cause TDR (Timeout Detection and Recovery) issues, we implemented a batching mechanism. The host code iterates through the search space in chunks (e.g., 100 million at a time), launching the kernel repeatedly with an `offset` parameter.
 - **Memory Management:** The target password and result buffer are stored in global memory. The charset is stored in constant memory (`__constant__`) for fast cached access, as every thread reads from it.
 
 **Load Balancing:**

@@ -29,6 +29,7 @@ The serial implementation uses a recursive or iterative approach to generate eve
 - **Approach:** We map a linear index (0 to $N$) to a unique candidate password string.
 - **Key Design:**
   - **Index-to-String:** A kernel function converts the global thread ID into a base-36 string on the fly. This allows random access to the search space without dependency on previous states.
+  - **Batch Processing:** To handle massive search spaces without overflowing GPU grid limits, the kernel is launched in batches (e.g., 100M at a time) with an offset.
   - **Memory:** The target string and result buffer are stored in global memory, while the charset is in `__constant__` memory for fast broadcast access.
 - **Justification:** GPUs excel at massive throughput. By launching millions of threads, we can check millions of passwords in parallel, far exceeding CPU capabilities.
 

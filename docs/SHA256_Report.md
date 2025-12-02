@@ -25,6 +25,7 @@ The serial implementation performs a depth-first search (or iterative increment)
 - **Key Design:**
   - **Custom SHA256:** OpenSSL is not available on GPU, so a custom, lightweight SHA256 implementation was written for the device.
   - **Constant Memory:** Look-up tables (SHA256 constants, charset) are stored in `__constant__` memory to maximize cache hits.
+  - **Batch Processing:** Implemented batched kernel launches to support arbitrary search space sizes, preventing TDR timeouts and grid overflows.
   - **Index-to-String:** On-the-fly generation of candidates from thread indices avoids memory lookups and allows random access to the search space.
 
 ## 2. Runtime Configurations
